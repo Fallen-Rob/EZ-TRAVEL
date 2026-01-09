@@ -6,7 +6,7 @@ const FILE_URI = FileSystem.documentDirectory + FILE_NAME;
 export async function readAgendas() {
   try {
     const info = await FileSystem.getInfoAsync(FILE_URI);
-    if (!info.exists) return [];               
+    if (!info.exists) return [];               // first launch
     const raw = await FileSystem.readAsStringAsync(FILE_URI);
     return JSON.parse(raw);
   } catch (e) {
