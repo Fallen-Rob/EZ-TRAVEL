@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const FILE_NAME = 'agendas.json';
 const FILE_URI = FileSystem.documentDirectory + FILE_NAME;
