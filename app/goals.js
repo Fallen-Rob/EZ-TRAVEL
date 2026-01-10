@@ -58,6 +58,13 @@ export default function GoalsScreen() {
 
   const router = useRouter();
 
+  // Unique ID generator: prefers crypto.randomUUID, falls back to time+random
+  const genId = () => (
+    globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  );
+
   const [checklist, setChecklist] = useState([]);
   const [images, setImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -74,7 +81,7 @@ export default function GoalsScreen() {
           setChecklist(currentAgenda.checklist);
         } else {
           // pag wala pang naka save so mag default
-          setChecklist([{ id: '1', text: 'Agenda for Today', done: false }]);
+          setChecklist([{ id: genId(), text: 'Agenda for Today', done: false }]);
         }
 
         if (currentAgenda && Array.isArray(currentAgenda.images)) {
@@ -86,7 +93,7 @@ export default function GoalsScreen() {
         }
       } catch (e) {
         console.warn('failed to load checklist', e);
-        setChecklist([{ id: '1', text: 'Agenda for Today', done: false }]);
+        setChecklist([{ id: genId(), text: 'Agenda for Today', done: false }]);
         setImages([]);
         setCurrentImageIndex(0);
       } finally {
@@ -108,8 +115,9 @@ export default function GoalsScreen() {
     const saveChecklistToStorage = async () => {
       try {
         const agendas = await readAgendas();
+        const isAllDone = checklist.length > 0 && checklist.every((i) => i.done);
         const updated = agendas.map((agenda) =>
-          agenda.id === item.id ? { ...agenda, checklist, images } : agenda
+          agenda.id === item.id ? { ...agenda, checklist, images, completed: isAllDone } : agenda
         );
         await writeAgendas(updated);
         console.log('Checklist saved for agenda', item.id, ':', checklist);
@@ -127,7 +135,7 @@ export default function GoalsScreen() {
   const addChecklistItem = () => {
     setChecklist((prev) => [
       ...prev,
-      { id: Date.now().toString(), text: 'New item', done: false },
+      { id: genId(), text: 'Agenda for Today', done: false },
     ]);
   };
 
@@ -528,7 +536,7 @@ const styles = StyleSheet.create({
   emptyAgenda: {
     color: '#777',
     fontStyle: 'italic',
-    marginBottom: 8,
+    textAlign: 'center',
   },
 
   checkboxDone: {

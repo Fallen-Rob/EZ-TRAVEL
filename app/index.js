@@ -1,7 +1,8 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Button,
@@ -78,6 +79,16 @@ export default function AgendaScreen() {
     })();
   }, []);
 
+  /* reload agendas when screen comes into focus (e.g., from goals screen) */
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const stored = await readAgendas();
+        setAgendas(stored);
+      })();
+    }, [])
+  );
+
   /* pang auto save sana nagana */
   useEffect(() => {
     if (agendas.length) writeAgendas(agendas);
@@ -93,6 +104,7 @@ export default function AgendaScreen() {
       id: counter.toString(),
       location: newLocation.trim(),
       dateTime: `${newDate} – ${newTime}`,
+      completed: false,
     };
     setAgendas([...agendas, newItem]);
     setCounter(counter + 1);
@@ -191,7 +203,11 @@ export default function AgendaScreen() {
           selectionMode ? toggleSelect(item.id) : router.push({ pathname: '/goals', params: { location: JSON.stringify(item) } })
         }
         onLongPress={() => toggleSelect(item.id)}
-        style={[styles.card, isSel && { backgroundColor: '#ffe9e9' }]}
+        style={[
+          styles.card,
+          isSel && { backgroundColor: '#ffe9e9' },
+          item.completed && { backgroundColor: '#43f06b' }
+        ]}
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.loc}>📍 {item.location}</Text>
@@ -339,7 +355,6 @@ const styles = StyleSheet.create({
    /* pang separator color white */
   card: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 6,
