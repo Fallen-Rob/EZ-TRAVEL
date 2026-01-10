@@ -18,7 +18,7 @@ import {
 
 const FILE_URI = FileSystem.documentDirectory + 'agendas.json';
 
-/* file storage*/
+/* file storage */
 async function readAgendas() {
   try {
     const info = await FileSystem.getInfoAsync(FILE_URI);
@@ -56,10 +56,15 @@ export default function AgendaScreen() {
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
 
+  /*  picker state  */
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
   const [scratchDate, setScratchDate] = useState(new Date());
   const [pickerTarget, setPickerTarget] = useState('add'); 
+
+  /* selection para delete  */
+  const [selected, setSelected] = useState(new Set());
+  const selectionMode = selected.size > 0;
 
   const router = useRouter();
 
@@ -73,7 +78,7 @@ export default function AgendaScreen() {
     })();
   }, []);
 
-  /* pang auto save sana nagana*/
+  /* pang auto save sana nagana */
   useEffect(() => {
     if (agendas.length) writeAgendas(agendas);
   }, [agendas]);
@@ -146,7 +151,7 @@ export default function AgendaScreen() {
 
   const onPickerChange = (event, selected) => {
     if (Platform.OS === 'ios' && event.type !== 'set') return;
-    setShowPicker(Platform.OS === 'ios'); 
+    setShowPicker(Platform.OS === 'ios');
     if (selected) {
       if (pickerMode === 'time') {
         const h = selected.getHours().toString().padStart(2, '0');
@@ -159,28 +164,52 @@ export default function AgendaScreen() {
     }
   };
 
-  /*  pang render  nung row  */
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => router.push({ pathname: '/goals', params: { location: JSON.stringify(item) } })}
-      onLongPress={() => deleteItem(item.id)}
-      style={styles.card}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.loc}>📍 {item.location}</Text>
-        <Text style={styles.dt}>{item.dateTime}</Text>
-      </View>
+  /*  selection uli pang delete or cancel ng delete */
+  const toggleSelect = (id) => {
+    const s = new Set(selected);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setSelected(s);
+  };
+  const deleteSelected = () => {
+    if (!selected.size) return;
+    Alert.alert('Delete', `Remove ${selected.size} agenda(s)?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+          setAgendas((prev) => prev.filter((i) => !selected.has(i.id)));
+          setSelected(new Set());
+      }},
+    ]);
+  };
 
-      {/* three little dots */}
+    /*  pang render  nung rows  */
+    const renderItem = ({ item }) => {
+    const isSel = selected.has(item.id);
+    return (
       <TouchableOpacity
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        onPress={() => openEdit(item)}
+        activeOpacity={0.8}
+        onPress={() =>
+          selectionMode ? toggleSelect(item.id) : router.push({ pathname: '/goals', params: { location: JSON.stringify(item) } })
+        }
+        onLongPress={() => toggleSelect(item.id)}
+        style={[styles.card, isSel && { backgroundColor: '#ffe9e9' }]}
       >
-        <Text style={styles.dots}>⋯</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.loc}>📍 {item.location}</Text>
+          <Text style={styles.dt}>{item.dateTime}</Text>
+        </View>
+
+        {/* three little dots aka pang edit */}
+        {!selectionMode && (
+          <TouchableOpacity hitSlop={12} onPress={() => openEdit(item)}>
+            <Text style={styles.dots}>⋯</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* check icon pag selected */}
+        {isSel && <Text style={styles.check}>✓</Text>}
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   /*  main UI  */
   return (
@@ -197,12 +226,22 @@ export default function AgendaScreen() {
         data={agendas}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      <Button title="Add Agenda" onPress={() => setShowAddForm(true)} />
+      {/* plus icon aka add agenda button */}
+      <TouchableOpacity style={styles.addFab} onPress={() => setShowAddForm(true)}>
+        <Text style={styles.fabIcon}>➕</Text>
+      </TouchableOpacity>
 
-      {/*  ADD FORM  */}
+      {/* trash icon aka delete button visible lng pag naka select ka ng agenda */}
+      {selectionMode && (
+        <TouchableOpacity style={styles.trashFab} onPress={deleteSelected}>
+          <Text style={styles.fabIcon}>🗑️</Text>
+        </TouchableOpacity>
+      )}
+
+      {/*  add form  */}      
       <Modal visible={showAddForm} animationType="slide" transparent>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -239,7 +278,7 @@ export default function AgendaScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ---------- EDIT FORM ---------- */}
+      {/*  edit form  */}
       <Modal visible={showEditForm} animationType="slide" transparent>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -276,7 +315,7 @@ export default function AgendaScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ---------- native picker overlay ---------- */}
+      {/* pang ios */}
       {showPicker && (
         <DateTimePicker
           value={scratchDate}
@@ -292,20 +331,15 @@ export default function AgendaScreen() {
 
 /*  styles  */
 const styles = StyleSheet.create({
- /* background */
-  container: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 60,
-    backgroundColor: '#F6E6D2',  
-  },
+  /* background */
+  container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: '#F6E6D2' },
   header: { fontSize: 34, fontWeight: '600', marginBottom: 24 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTxt: { color: '#999', fontSize: 16 },
    /* pang separator color white */
   card: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',     
+    backgroundColor: '#ffffff',
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 6,
@@ -317,6 +351,45 @@ const styles = StyleSheet.create({
   loc: { fontSize: 17, marginBottom: 2 },
   dt: { fontSize: 13, color: '#555' },
   dots: { fontSize: 20, color: '#8e8e93', paddingLeft: 12 },
+  check: { fontSize: 20, color: '#34c759', paddingLeft: 8 },
+
+  /* add button */
+  addFab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  /* delete button */
+  trashFab: {
+    position: 'absolute',
+    left: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  fabIcon: { fontSize: 24, color: '#fff' },
+
+  /*  modals  */
   modalContainer: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalCard: { backgroundColor: '#fff', marginHorizontal: 32, padding: 24, borderRadius: 12 },
   modalTitle: { fontSize: 20, fontWeight: '600', marginBottom: 16 },

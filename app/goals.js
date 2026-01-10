@@ -7,7 +7,7 @@ import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, Touchable
 
 const FILE_URI = FileSystem.documentDirectory + 'agendas.json';
 
-// Format date to: "January 9, 2026 (Sunday) - 14:30"
+// pang format ng dates
 const formatDateWithDay = (dateTime) => {
   if (!dateTime) return '(Date and Time)';
 
@@ -21,7 +21,7 @@ const formatDateWithDay = (dateTime) => {
   return `${monthName} ${day}, ${year} (${weekday}) - ${timeStr}`;
 };
 
-// Read agendas from storage (shared with index.js)
+// agenda reader
 async function readAgendas() {
   try {
     const info = await FileSystem.getInfoAsync(FILE_URI);
@@ -34,7 +34,7 @@ async function readAgendas() {
   }
 }
 
-// Write agendas to storage (shared with index.js)
+// mga goals
 async function writeAgendas(list) {
   try {
     await FileSystem.writeAsStringAsync(FILE_URI, JSON.stringify(list));
@@ -63,7 +63,7 @@ export default function GoalsScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load checklist and images from storage on mount
+  // Load checklist and images 
   useEffect(() => {
     const loadChecklist = async () => {
       try {
@@ -73,7 +73,7 @@ export default function GoalsScreen() {
         if (currentAgenda && currentAgenda.checklist && Array.isArray(currentAgenda.checklist)) {
           setChecklist(currentAgenda.checklist);
         } else {
-          // No checklist saved yet, use default
+          // pag wala pang naka save so mag default
           setChecklist([{ id: '1', text: 'Agenda for Today', done: false }]);
         }
 
@@ -103,7 +103,7 @@ export default function GoalsScreen() {
   const [editText, setEditText] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  // Save checklist/images to storage whenever they change (after initial load)
+  // Save checklist/images
   useEffect(() => {
     const saveChecklistToStorage = async () => {
       try {
@@ -251,7 +251,7 @@ export default function GoalsScreen() {
     ]);
   };
 
-  // Delete task from storage (same as index.js)
+  // Delete task from storage 
   const deleteTask = async () => {
     Alert.alert('Delete', 'Remove this task?', [
       { text: 'Cancel', style: 'cancel' },
