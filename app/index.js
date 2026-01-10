@@ -1,8 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
@@ -16,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+/*  👇  hook that fires when we return to this screen  */
+import { useFocusEffect } from '@react-navigation/native';
 
 const FILE_URI = FileSystem.documentDirectory + 'agendas.json';
 
@@ -44,6 +45,9 @@ export default function AgendaScreen() {
   const [agendas, setAgendas] = useState([]);
   const [counter, setCounter] = useState(1);
 
+  /* ----------  NEW : top filter ---------- */
+  const [showCompleted, setShowCompleted] = useState(false); // false = Incomplete, true = Completed
+
   /* add form  ng agenda */
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLocation, setNewLocation] = useState('');
@@ -61,7 +65,7 @@ export default function AgendaScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
   const [scratchDate, setScratchDate] = useState(new Date());
-  const [pickerTarget, setPickerTarget] = useState('add'); 
+  const [pickerTarget, setPickerTarget] = useState('add');
 
   /* selection para delete  */
   const [selected, setSelected] = useState(new Set());
@@ -79,12 +83,14 @@ export default function AgendaScreen() {
     })();
   }, []);
 
-  /* reload agendas when screen comes into focus (e.g., from goals screen) */
+  /*  re-read file every time we come back  */
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       (async () => {
         const stored = await readAgendas();
         setAgendas(stored);
+        const maxId = stored.reduce((m, i) => Math.max(m, Number(i.id)), 0);
+        setCounter(maxId + 1);
       })();
     }, [])
   );
@@ -104,7 +110,6 @@ export default function AgendaScreen() {
       id: counter.toString(),
       location: newLocation.trim(),
       dateTime: `${newDate} – ${newTime}`,
-      completed: false,
     };
     setAgendas([...agendas, newItem]);
     setCounter(counter + 1);
@@ -193,8 +198,8 @@ export default function AgendaScreen() {
     ]);
   };
 
-    /*  pang render  nung rows  */
-    const renderItem = ({ item }) => {
+  /*  pang render  nung rows  */
+  const renderItem = ({ item }) => {
     const isSel = selected.has(item.id);
     return (
       <TouchableOpacity
@@ -203,11 +208,7 @@ export default function AgendaScreen() {
           selectionMode ? toggleSelect(item.id) : router.push({ pathname: '/goals', params: { location: JSON.stringify(item) } })
         }
         onLongPress={() => toggleSelect(item.id)}
-        style={[
-          styles.card,
-          isSel && { backgroundColor: '#ffe9e9' },
-          item.completed && { backgroundColor: '#43f06b' }
-        ]}
+        style={[styles.card, isSel && { backgroundColor: '#ffe9e9' }, item.completed && { backgroundColor: '#d4ffd4' }]}
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.loc}>📍 {item.location}</Text>
@@ -227,19 +228,43 @@ export default function AgendaScreen() {
     );
   };
 
+  /* ----------  NEW : filter lists  ---------- */
+  const incompleteAgendas = agendas.filter((a) => !a.completed);
+  const completedAgendas   = agendas.filter((a) => a.completed);
+  const displayList        = showCompleted ? completedAgendas : incompleteAgendas;
+
   /*  main UI  */
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Agenda</Text>
 
-      {agendas.length === 0 && (
+      {/* ----------  NEW : top toggle ---------- */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, !showCompleted && styles.toggleActive]}
+          onPress={() => setShowCompleted(false)}
+        >
+          <Text style={[styles.toggleTxt, !showCompleted && styles.toggleTxtActive]}>Incomplete</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.toggleBtn, showCompleted && styles.toggleActive]}
+          onPress={() => setShowCompleted(true)}
+        >
+          <Text style={[styles.toggleTxt, showCompleted && styles.toggleTxtActive]}>Completed</Text>
+        </TouchableOpacity>
+      </View>
+
+      {displayList.length === 0 && (
         <View style={styles.empty}>
-          <Text style={styles.emptyTxt}>No agendas yet – tap “Add Agenda” to start</Text>
+          <Text style={styles.emptyTxt}>
+            {showCompleted ? 'No completed agendas yet' : 'No agendas yet – tap “Add Agenda” to start'}
+          </Text>
         </View>
       )}
 
       <FlatList
-        data={agendas}
+        data={displayList}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -257,7 +282,7 @@ export default function AgendaScreen() {
         </TouchableOpacity>
       )}
 
-      {/*  add form  */}      
+      {/*  add form  */}
       <Modal visible={showAddForm} animationType="slide" transparent>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -349,12 +374,32 @@ export default function AgendaScreen() {
 const styles = StyleSheet.create({
   /* background */
   container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: '#F6E6D2' },
-  header: { fontSize: 34, fontWeight: '600', marginBottom: 24 },
+  header: { fontSize: 34, fontWeight: '600', marginBottom: 12 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTxt: { color: '#999', fontSize: 16 },
-   /* pang separator color white */
+
+  /* ----------  NEW : toggle ---------- */
+  toggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 16,
+    padding: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  toggleActive: { backgroundColor: '#ff3b30' },
+  toggleTxt: { fontSize: 14, color: '#333' },
+  toggleTxtActive: { color: '#fff', fontWeight: '600' },
+
+  /* pang separator color white */
   card: {
     flexDirection: 'row',
+    backgroundColor: '#ffffff',
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 6,
