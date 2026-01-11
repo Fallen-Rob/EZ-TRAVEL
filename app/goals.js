@@ -3,11 +3,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const screenHeight = Dimensions.get('window').height;
+const screenWidth = Dimensions.get('window').width;
 const FILE_URI = FileSystem.documentDirectory + 'agendas.json';
 
-// pang format ng dates
+// date and time display in header
 const formatDateWithDay = (dateTime) => {
   if (!dateTime) return '(Date and Time)';
 
@@ -34,7 +36,7 @@ async function readAgendas() {
   }
 }
 
-// mga goals
+// agenda updater
 async function writeAgendas(list) {
   try {
     await FileSystem.writeAsStringAsync(FILE_URI, JSON.stringify(list));
@@ -43,10 +45,11 @@ async function writeAgendas(list) {
   }
 }
 
+// main function
 export default function GoalsScreen() {
-  {/* Location Testing using Try/Catch */}
+  
+  // screen display
   const { location } = useLocalSearchParams();
-
   let item = { location: '' };
   try {
     if (typeof location === 'string') {
@@ -55,10 +58,9 @@ export default function GoalsScreen() {
   } catch (e) {
     console.warn('Invalid location param', e);
   }
-
   const router = useRouter();
 
-  // Unique ID generator: prefers crypto.randomUUID, falls back to time+random
+  // unique id generator for tasks
   const genId = () => (
     globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
       ? globalThis.crypto.randomUUID()
@@ -70,7 +72,7 @@ export default function GoalsScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load checklist and images 
+  // load checklist and images
   useEffect(() => {
     const loadChecklist = async () => {
       try {
@@ -80,7 +82,7 @@ export default function GoalsScreen() {
         if (currentAgenda && currentAgenda.checklist && Array.isArray(currentAgenda.checklist)) {
           setChecklist(currentAgenda.checklist);
         } else {
-          // pag wala pang naka save so mag default
+          // default checklist item
           setChecklist([{ id: genId(), text: 'Agenda for Today', done: false }]);
         }
 
@@ -110,7 +112,7 @@ export default function GoalsScreen() {
   const [editText, setEditText] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  // Save checklist/images
+  // to save each agenda update
   useEffect(() => {
     const saveChecklistToStorage = async () => {
       try {
@@ -126,7 +128,6 @@ export default function GoalsScreen() {
       }
     };
 
-    // Only save after initial load is complete
     if (isLoaded && item && item.id) {
       saveChecklistToStorage();
     }
@@ -163,11 +164,12 @@ export default function GoalsScreen() {
     setEditingId(null);
   };
 
+  // delete checklist item function
   const deleteChecklistItem = (id) => {
     setChecklist((prev) => prev.filter((entry) => entry.id !== id));
   };
 
-  // Pick image from device library and show in placeholder
+  // image selection functions
   const pickImage = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -177,7 +179,7 @@ export default function GoalsScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         quality: 0.8,
       });
@@ -194,16 +196,19 @@ export default function GoalsScreen() {
     }
   };
 
+  // image navigation function (left)
   const showPrevImage = () => {
     if (!images.length) return;
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  // image navigation function (right)
   const showNextImage = () => {
     if (!images.length) return;
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
+  // image replacement function
   const replaceCurrentImage = async () => {
     if (!images.length) {
       Alert.alert('No image', 'Add an image first before replacing.');
@@ -218,7 +223,7 @@ export default function GoalsScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         quality: 0.8,
       });
@@ -235,6 +240,7 @@ export default function GoalsScreen() {
     }
   };
 
+    // image deletion function
   const deleteCurrentImage = () => {
     if (!images.length) return;
 
@@ -259,26 +265,11 @@ export default function GoalsScreen() {
     ]);
   };
 
-  // Delete task from storage 
-  const deleteTask = async () => {
-    Alert.alert('Delete', 'Remove this task?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const agendas = await readAgendas();
-          const updated = agendas.filter((agenda) => agenda.id !== item.id);
-          await writeAgendas(updated);
-          router.back();
-        },
-      },
-    ]);
-  };
-
+  // goals.js ui
   return (
     <>
       <ScrollView style={styles.container}>
+        
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -333,7 +324,7 @@ export default function GoalsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* MEMORIES */}
+      {/* MEMORIES HEADER */}
       <View style={styles.memoriesHeader}>
         <Text style={styles.memoriesTitle}>Memories</Text>
         <View style={styles.rightRow}>
@@ -407,12 +398,14 @@ export default function GoalsScreen() {
   );
 }
 
+
+// ui styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F6E6D2',
-    paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingHorizontal: '5%',
+    paddingTop: '12%',
   },
 
   header: {
@@ -427,17 +420,17 @@ const styles = StyleSheet.create({
   },
 
   subText: {
-    marginTop: 4,
+    marginTop: '2%',
     color: '#555',
     textAlign: 'center',
   },
 
   section: {
-    marginTop: 20,
+    marginTop: '5%',
   },
 
   checklistContainer: {
-    height: 300,
+    height: screenHeight * 0.35,
     borderWidth: 1,
     borderColor: '#000000',
     borderRadius: 8,
@@ -449,8 +442,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: '3%',
+    paddingHorizontal: '5%',
     backgroundColor: '#ccc',
   },
 
@@ -460,15 +453,16 @@ const styles = StyleSheet.create({
   },
 
   rightRow: {
+    width: '15%',
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
   },
 
   checkbox: {
-    width: 18,
-    height: 18,
+    width: '11%',
+    height: screenHeight * 0.023,
     borderWidth: 1,
-    marginRight: 12,
+    marginRight: '7%',
   },
 
   agendaText: {
@@ -478,17 +472,17 @@ const styles = StyleSheet.create({
   addAgenda: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: '4%',
   },
 
   addAgendaText: {
-    marginLeft: 8,
+    marginLeft: '2%',
     color: 'red',
     fontSize: 16,
   },
 
   memoriesHeader: {
-    marginTop: 20,
+    marginTop: '5%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -500,15 +494,15 @@ const styles = StyleSheet.create({
   },
 
   imageContainer: {
-    marginTop: 20,
+    marginTop: '6%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
 
   imagePlaceholder: {
-    width: 220,
-    height: 180,
+    width: screenWidth * 0.55,
+    height: screenHeight * 0.25,
     backgroundColor: '#eee',
     alignItems: 'center',
     justifyContent: 'center',
@@ -521,9 +515,9 @@ const styles = StyleSheet.create({
   },
 
   addImageButton: {
-    marginTop: 24,
+    marginTop: '6%',
     backgroundColor: '#9DB08B',
-    paddingVertical: 14,
+    paddingVertical: '4%',
     borderRadius: 24,
     alignItems: 'center',
   },
@@ -556,41 +550,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: '5%',
   },
 
   modalCard: {
     width: '100%',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: '6%',
   },
 
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: '4%',
   },
 
   modalInput: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: '4%',
+    paddingVertical: '4%',
     fontSize: 16,
   },
 
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 16,
-    gap: 12,
+    marginTop: '5%',
   },
 
   modalButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: '5%',
+    paddingVertical: '3%',
+    marginLeft: '5%',
     borderRadius: 8,
     backgroundColor: '#eee',
   },
